@@ -1,6 +1,6 @@
 --- ../src-base/minecraft/cpw/mods/fml/common/eventhandler/EventBus.java
 +++ ../src-work/minecraft/cpw/mods/fml/common/eventhandler/EventBus.java
-@@ -3,6 +3,7 @@
+@@ -3,12 +3,15 @@
  import java.lang.reflect.Constructor;
  import java.lang.reflect.Method;
  import java.util.ArrayList;
@@ -8,16 +8,34 @@
  import java.util.Map;
  import java.util.Set;
  import java.util.concurrent.ConcurrentHashMap;
-@@ -19,6 +20,8 @@
+ 
+ import javax.annotation.Nonnull;
+ 
++import cc.uraniummc.events.UraniumForgeEvent;
++import lombok.val;
+ import org.apache.logging.log4j.Level;
+ 
+ import com.google.common.base.Preconditions;
+@@ -19,6 +22,10 @@
  import cpw.mods.fml.common.FMLLog;
  import cpw.mods.fml.common.Loader;
  import cpw.mods.fml.common.ModContainer;
 +import net.minecraft.server.MinecraftServer;
 +import net.minecraftforge.common.MinecraftForge;
++import org.bukkit.Bukkit;
++import org.bukkit.plugin.java.PluginClassLoader;
  
  public class EventBus implements IEventExceptionHandler
  {
-@@ -129,8 +132,25 @@
+@@ -52,6 +59,7 @@
+         ModContainer activeModContainer = Loader.instance().activeModContainer();
+         if (activeModContainer == null)
+         {
++            if (target == null || !(target.getClass().getClassLoader() instanceof PluginClassLoader))
+             FMLLog.log(Level.ERROR, new Throwable(), "Unable to determine registrant mod for %s. This is a critical error and should be impossible", target);
+             activeModContainer = Loader.instance().getMinecraftModContainer();
+         }
+@@ -129,8 +137,25 @@
          }
      }
  
@@ -25,7 +43,7 @@
 +
      public boolean post(Event event)
      {
-+        Boolean tEnable = MinecraftServer.uraniumConfig==null?Boolean.FALSE:MinecraftServer.uraniumConfig.enableEndlessLoopCheck.getValue();
++        boolean tEnable = MinecraftServer.uraniumConfig.enableEndlessLoopCheck.getValue();
 +        if (tEnable && this == MinecraftForge.EVENT_BUS) {
 +            // not handle async
 +            Class<? extends Event> tClazz = event.getClass();
@@ -43,7 +61,7 @@
          IEventListener[] listeners = event.getListenerList().getListeners(busID);
          int index = 0;
          try
-@@ -144,6 +164,15 @@
+@@ -144,7 +169,21 @@
          {
              exceptionHandler.handleException(this, event, listeners, index, throwable);
              Throwables.propagate(throwable);
@@ -57,5 +75,11 @@
 +                }
 +            }
          }
++        if((MinecraftServer.uraniumConfig.enableBukkitForgeEvent.getValue())&&(!event.isCancelable() || !event.isCanceled())) {
++            val bukkitEvent = new UraniumForgeEvent(event);
++            Bukkit.getServer().getPluginManager().callEvent(bukkitEvent);
++        }
++
          return (event.isCancelable() ? event.isCanceled() : false);
      }
+ 
